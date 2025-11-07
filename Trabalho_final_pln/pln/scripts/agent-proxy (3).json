@@ -1,0 +1,1361 @@
+{
+  "name": "agent-proxy",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-proxy",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "942aa9c2-97b4-4d00-9a6b-707b32d76efb",
+      "name": "Webhook",
+      "webhookId": "9d4e7152-1617-4029-9c2a-b7f070cca981"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1920,
+        0
+      ],
+      "id": "fac7e17d-84da-4171-8d37-f15e3af47468",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        288
+      ],
+      "id": "b038d776-9aaf-4b73-86b1-986388e8c64b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Função para criar a frase consolidada com modelos e suas collections\n\nconst input = items[0].json;\nconst models = input.body.models;\n\n// Debug: verificar estrutura dos dados\nconsole.log('Models recebidos:', JSON.stringify(models, null, 2));\n\n// Lista de modelos ativos\nconst modelosAtivos = Object.keys(models).filter(m => models[m] && models[m].enabled);\n\n// Texto inicial listando os modelos\nlet texto = \"Utilize \" + modelosAtivos.map(m => `o modelo ${m}`).join(\" e \") + \". \";\n\n// Agora detalhamos cada modelo e suas collections\nfor (const [modelo, dados] of Object.entries(models)) {\n  if (dados && dados.enabled) {\n    // Verificar diferentes formatos possíveis de collections\n    let collections = [];\n    \n    if (Array.isArray(dados.collections)) {\n      collections = dados.collections.filter(c => c && c.trim() !== '');\n    } else if (dados.collections && typeof dados.collections === 'string') {\n      // Se for string, tentar dividir por vírgula\n      collections = dados.collections.split(',').map(c => c.trim()).filter(c => c !== '');\n    } else if (dados.collection && typeof dados.collection === 'string') {\n      // Verificar se está em 'collection' (singular)\n      collections = [dados.collection.trim()].filter(c => c !== '');\n    }\n    \n    // Adicionar ao texto apenas se houver collections\n    if (collections.length > 0) {\n      texto += `Para o modelo ${modelo}, as collections ativas são ${collections.join(\", \")}. `;\n    } else {\n      texto += `Para o modelo ${modelo}, nenhuma collection específica foi selecionada. `;\n    }\n  }\n}\n\nreturn [\n  {\n    json: {\n      result: texto.trim()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "c436caa5-c4bd-4b13-ab20-10b195e24c55",
+      "name": "Lista Collections"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').item.json.body.session_id }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        400,
+        288
+      ],
+      "id": "74401f7d-acff-436a-8a08-11a819135af8",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "cKEFaogPqcnNgM9v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "=Somente use as collections que estiverem ativas no momento. {{ $('Lista Collections').item.json.result }}.\n\nO agente \n\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        288
+      ],
+      "id": "f9b9d14d-89ca-4e14-9367-b750eb1deb56",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.pergunta }}.\nNesta consulta, siga o seguinte: {{ $('Lista Collections').item.json.result }}.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Você é um chefe de cozinha e assistente pessoal de cozinha e receitas, se apresente como tal e seja agradavel e sociavel, sempre busque nos documentos enviados antes de responder sobre pedidos de receita. Você só utilizará os recursos conforme os modelos escolhidos. Caso ambos os modelos tenham sido escolhidos, faça a mesma busca nos dois agentes especializados.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        0
+      ],
+      "id": "1a3a3c00-f4e7-4059-9af6-2d0bf1dbf70a",
+      "name": "Agente Proxy"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5523e481-9a84-48a0-a8fb-db926a627de4",
+              "name": "pergunta",
+              "value": "={{ $('Webhook').item.json.body.question }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        0
+      ],
+      "id": "b892b2de-2a15-406a-96eb-e26e4072f93b",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1376,
+        672
+      ],
+      "id": "8f7c8c37-6349-477f-906f-d299cd230afe",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Agente que faz busca em curriculos cadastrados",
+        "text": "=Com base na pergunta \"{{ $('Edit Fields').item.json.pergunta }}\", faça a busca de receitas com base nos documentos.",
+        "options": {
+          "systemMessage": "Você é um chef assistente especializado em culinária e receitas, com acesso aos meus documentos pessoais de receitas, sempre consulte os documentos antes de gerar uma resposta, seja sincero, pode mesclar eventualmente as receitas dos meus documentos com ideias pessoais.\n\nInstruções para sua resposta:\n- Forneça receitas completas e precisas baseadas nos documentos\n- Inclua lista de ingredientes, quantidades exatas e modo de preparo passo a passo\n- Ofereça variações, dicas de preparo e substituições de ingredientes quando relevante\n- Seja claro sobre tempos de preparo, cozimento e rendimento das receitas\n- Mantenha um tom acessível e encorajador, como um chef experiente ensinando\n- Se a informação não estiver nos documentos, seja honesto e sugere alternativas relacionadas"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        1376,
+        496
+      ],
+      "id": "c251fb96-af01-4f84-95a9-fa5575f3d979",
+      "name": "Agente OpenAI"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1504,
+        832
+      ],
+      "id": "72573e67-8be4-4036-b08e-bed86de23a88",
+      "name": "EmbOpenAI-QA",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1776,
+        832
+      ],
+      "id": "a3e6ab1e-2f0e-44aa-b343-18df74a56d0c",
+      "name": "EmbOpenAI-full",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"success\": true,\n  \"responses\": {\n    \"openai\": \"STRING_MARKDOWN\",\n    \"gemini\": \"STRING_MARKDOWN\"\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1408,
+        224
+      ],
+      "id": "f653bedb-89fd-4a70-a559-143f1dac1a5a",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Aqui estao armazenadas receitas sobre a cozinha maltesa, A culinária maltesa é uma fusão de sabores mediterrâneos, com fortes influências italianas, árabes e britânicas",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_maltesa",
+          "mode": "list",
+          "cachedResultName": "cozinha_maltesa"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        1504,
+        672
+      ],
+      "id": "51570f2e-5920-467a-a1fd-303ec059fdea",
+      "name": "Cozinha Maltesa",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria portuguesa. Utilize as receitas como enriquecimento de informações sobre as receitas portuguesas relevantes.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_portuguesa",
+          "mode": "list",
+          "cachedResultName": "cozinha_portuguesa"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        1776,
+        672
+      ],
+      "id": "486f4b33-6d07-4d0b-9463-d4e6b174884a",
+      "name": "cozinha portuguesa",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2048,
+        832
+      ],
+      "id": "3756431d-e2cb-413a-8fb0-809f8f5dd755",
+      "name": "EmbOpenAI-full1",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria do caucaso. Utilize as receitas como enriquecimento de informações sobre as receitas do caucaso relevantes. A culinária do Cáucaso, que abrange as tradições da Geórgia, Armênia e Azerbaijão, é conhecida pelo uso de carne, berinjela, pães, iogurtes e ervas frescas.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_do_cáucaso",
+          "mode": "list",
+          "cachedResultName": "cozinha_do_cáucaso"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        2048,
+        672
+      ],
+      "id": "1c567b1d-a751-4f57-a0b7-725d242c87f1",
+      "name": "cozinha caucaso",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2320,
+        832
+      ],
+      "id": "30bdd1ba-0596-4988-8528-250e4a87f8a0",
+      "name": "EmbOpenAI-full2",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria da angola. Utilize as receitas como enriquecimento de informações sobre as receitas angolanas relevantes. A culinária angolana é rica e diversificada, combinando influências africanas e portuguesas.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_angolana",
+          "mode": "list",
+          "cachedResultName": "cozinha_angolana"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        2320,
+        672
+      ],
+      "id": "587dc6b9-f688-4c49-88d0-58312a90ad68",
+      "name": "cozinha angolana",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2576,
+        832
+      ],
+      "id": "23bbe50a-61a5-4385-afc3-6a3eeb29effc",
+      "name": "EmbOpenAI-full3",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria Eslava. Utilize as receitas como enriquecimento de informações sobre as receitas eslavas relevantes. A culinária eslava é diversificada e caracterizada por pratos substanciosos, como sopas cremosas (borchtch e sopa eslava), carnes, pães, legumes e laticínios",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_eslava",
+          "mode": "list",
+          "cachedResultName": "cozinha_eslava"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        2576,
+        672
+      ],
+      "id": "8267ea88-0a9a-40ea-aee6-0ee5ca644ca6",
+      "name": "cozinha eslava",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1488,
+        1136
+      ],
+      "id": "2c368c2a-26ab-4b65-8924-f0af124cb394",
+      "name": "EmbOpenAI-full4",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria Americana. Utilize as receitas como enriquecimento de informações sobre as receitas americanas relevantes. A culinária dos Estados Unidos é conhecida por sua diversidade, resultado de influências indígenas, africanas, europeias e latino-americanas, além de pratos icônicos globalmente famosos.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_americana",
+          "mode": "list",
+          "cachedResultName": "cozinha_americana"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        1488,
+        976
+      ],
+      "id": "012f69f1-c970-4af7-b6ce-25713a3987fd",
+      "name": "cozinha americana",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1776,
+        1136
+      ],
+      "id": "c92bdd15-49d8-4bd0-bbdc-41fb6d8094c5",
+      "name": "EmbOpenAI-full5",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria Irlandesa. Utilize as receitas como enriquecimento de informações sobre as receitas irlandesas relevantes. A culinária irlandesa é simples, nutritiva e baseada em ingredientes como batatas, carnes (especialmente cordeiro), peixe e laticínios",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_irlandesa",
+          "mode": "list",
+          "cachedResultName": "cozinha_irlandesa"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        1776,
+        976
+      ],
+      "id": "0d372282-b35f-4aad-8799-a3ba75994e7f",
+      "name": "cozinha irlandesa",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2048,
+        1136
+      ],
+      "id": "c750d95f-fab4-4864-807c-38e34d7cf777",
+      "name": "EmbOpenAI-full6",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria Chinesa. Utilize as receitas como enriquecimento de informações sobre as receitas chinesas relevantes. A culinária chinesa é conhecida por sua diversidade, que combina sabores, cores e texturas contrastantes como doce e salgado, macio e crocante, seguindo o conceito de yin e yang",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_chinesa",
+          "mode": "list",
+          "cachedResultName": "cozinha_chinesa"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        2048,
+        976
+      ],
+      "id": "dcf54340-10cd-45b1-a328-6c0d8f04ca24",
+      "name": "cozinha chinesa",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2336,
+        1136
+      ],
+      "id": "02df5e14-3612-493f-b371-441f56926fc7",
+      "name": "EmbOpenAI-full7",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria suiça. Utilize as receitas como enriquecimento de informações sobre as receitas suiças relevantes. A culinária suíça é marcada por pratos como o fondue de queijo, a raclette e o rösti (batata ralada), além de especialidades regionais como o Zürcher geschnetzeltes (vitela de Zurique) e o Capuns (do cantão dos Grisões)",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_suíça",
+          "mode": "list",
+          "cachedResultName": "cozinha_suíça"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        2336,
+        976
+      ],
+      "id": "0b498469-49f6-4175-bc34-6e3fa85cb942",
+      "name": "cozinha Suiça",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2624,
+        1136
+      ],
+      "id": "a570341b-47ce-4e5c-8235-d22126d57a0c",
+      "name": "EmbOpenAI-full8",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria Árabe. Utilize as receitas como enriquecimento de informações sobre as receitas árabes relevantes. A culinária árabe é diversa, rica em especiarias e combina ingredientes como grão-de-bico, lentilha, pimentão, tomate, cebola, hortelã e limão, sendo marcada pelo uso de carnes, como a de cordeiro, e por pratos como quibe, esfirras, shawarma e pastas como homus e babaganuche.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_árabe",
+          "mode": "list",
+          "cachedResultName": "cozinha_árabe"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        2624,
+        976
+      ],
+      "id": "180b11b1-6538-4c46-8757-49a0c59d6ed2",
+      "name": "cozinha Árabe",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1472,
+        1456
+      ],
+      "id": "52894e20-3835-4f43-98f6-bb70ae3a0a89",
+      "name": "EmbOpenAI-full9",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria Romena. Utilize as receitas como enriquecimento de informações sobre as receitas romenas relevantes.A cozinha romena é uma mistura diversificada de pratos diferentes de diversas tradições com as quais entrou em contacto, mas também mantém o seu carácter próprio.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_romena",
+          "mode": "list",
+          "cachedResultName": "cozinha_romena"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        1472,
+        1296
+      ],
+      "id": "7f2a1f59-76d6-414e-8cbd-d1fe9ce191ea",
+      "name": "cozinha romena",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        1456
+      ],
+      "id": "ff494d6f-488e-4bdc-b5b9-f0e234069868",
+      "name": "EmbOpenAI-full10",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria da Eslovaquia. Utilize as receitas como enriquecimento de informações sobre as receitas eslovaquia relevantes.A culinária eslovaca é marcada por pratos de carne e acompanhamentos como batatas e dumplings. O prato nacional é o Bryndzové halušky, bolinhos de batata com queijo de ovelha (bryndza) e bacon.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_eslovaca",
+          "mode": "list",
+          "cachedResultName": "cozinha_eslovaca"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        1760,
+        1296
+      ],
+      "id": "5828f2e3-8aac-4ebc-acf9-eb455bb7d6bc",
+      "name": "cozinha eslovaquia",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2048,
+        1456
+      ],
+      "id": "4f053064-00a6-4f68-9525-1f471926ac0f",
+      "name": "EmbOpenAI-full11",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria Belga. Utilize as receitas como enriquecimento de informações sobre as receitas belgas relevantes. A culinária belga é conhecida por seus pratos robustos e saborosos, com influências regionais e uso de ingredientes como batatas, cerveja, alho-poró e frutos do mar.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_belga",
+          "mode": "list",
+          "cachedResultName": "cozinha_belga"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        2048,
+        1296
+      ],
+      "id": "a5a380ac-ffb8-4713-bf30-655825176c35",
+      "name": "cozinha belga",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2320,
+        1456
+      ],
+      "id": "f39313e2-97d8-4ac3-bb91-ffb189190d88",
+      "name": "EmbOpenAI-full12",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria Israelense. Utilize as receitas como enriquecimento de informações sobre as receitas israelenses relevantes. A culinária de Israel é um caldeirão de influências árabes e judaicas (da Europa, Norte da África e Oriente Médio), com pratos populares como húmus, falafel e shawarma.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_israelense",
+          "mode": "list",
+          "cachedResultName": "cozinha_israelense"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        2320,
+        1296
+      ],
+      "id": "91ba5d65-d7a2-439a-8c52-0d3d3455d115",
+      "name": "cozinha israelense",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2608,
+        1456
+      ],
+      "id": "e8790031-584f-43b9-b3aa-4e02e387e6d2",
+      "name": "EmbOpenAI-full13",
+      "credentials": {
+        "openAiApi": {
+          "id": "VHfvVj0OOEILdlzR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Nesta coleção você encontra receitas completas da culinaria Filandesa. Utilize as receitas como enriquecimento de informações sobre as receitas filandesa relevantes. A culinária finlandesa é marcada por ingredientes como peixes (salmão), carnes (porco, rena), batatas, cereais integrais (centeio) e frutas vermelhas.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "cozinha_finlandesa",
+          "mode": "list",
+          "cachedResultName": "cozinha_finlandesa"
+        },
+        "topK": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        2608,
+        1296
+      ],
+      "id": "5cb556e6-7908-47ae-a00c-99a78a8233f3",
+      "name": "cozinha finlandesa",
+      "credentials": {
+        "qdrantApi": {
+          "id": "BnA6YfulHBHX72eS",
+          "name": "QdrantApi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Lista Collections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente Proxy",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lista Collections": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente Proxy",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Proxy",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Proxy": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Agente Proxy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente OpenAI": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Proxy",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-QA": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Cozinha Maltesa",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha portuguesa",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agente Proxy",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cozinha Maltesa": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha portuguesa": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha caucaso",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha caucaso": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full2": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha angolana",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha angolana": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full3": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha eslava",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha eslava": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full4": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha americana",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha americana": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full5": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha irlandesa",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha irlandesa": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full6": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha chinesa",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha chinesa": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full7": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha Suiça",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha Suiça": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full8": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha Árabe",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha Árabe": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full9": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha romena",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha romena": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full10": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha eslovaquia",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha eslovaquia": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full11": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha belga",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha belga": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full12": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha israelense",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha israelense": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbOpenAI-full13": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cozinha finlandesa",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cozinha finlandesa": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente OpenAI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "68d85118-3a5a-4ed3-a995-2dd03082ad48",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dd6ed8da3b21a383b44cf1417b511c494f7cff89ed2005a01d580c86fb2b5c66"
+  },
+  "id": "OzRgI41WHhtfXNmb",
+  "tags": []
+}
