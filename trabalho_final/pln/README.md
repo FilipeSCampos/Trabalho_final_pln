@@ -1,4 +1,4 @@
-<img width="1048" height="541" alt="image" src="https://github.com/user-attachments/assets/7a997cbc-111c-42e3-bb98-a3574a5c70e2" /># Setup Inicial - Primeira Vez
+# Setup Inicial - Primeira Vez
 
 ### 1. Clonar o Repositório
 
