@@ -44,10 +44,10 @@ ele ja automaticamente deleta todas as collections corrompidas que existem.
    - Clique em "Workflows" → "Import from File"
    - Selecione `agente-cozinha.json`
 
-### 6. Testes
+### 6. Testes e Exemplos de perguntas
 
 ```python
-pergunta: Ola, o que voce pode me ajudar?
+Pergunta: Ola, o que voce pode me ajudar?
 
 Resposta: "Olá! Posso te ajudar oferecendo uma variedade de receitas completas, detalhadas e organizadas, provenientes das coleções de culinária disponíveis nos seus documentos. Tenho receitas de diversas culinárias como:
 - Cozinha Finlandesa: pratos com salmão defumado, filé de robalo, crème brûlée, brownie finlandês, molhos especiais, entre outros.
@@ -62,6 +62,40 @@ Ativa todas as collections da RAG
 <img width="1048" height="541" alt="image" src="https://github.com/user-attachments/assets/d2b8b448-402e-4bf8-bd1f-c20987440b80" />
 
 ```python
-pergunta: Monte para mim um cardapio completo misturando cozinha chinesa e arabe
+Pergunta: Monte para mim um cardapio completo misturando cozinha chinesa e arabe
+
+Resposta:  Entradas e Canapés
+- Palmito com caviar de tapioca (Chinês): Sagu de tapioca cozido até transparente, temperado com shoyu, servido com palmito em rodelas.
+- Canapés Árabes: Baby falafel com molho de hortelã, pão pita crispy com coalhada seca e tomate cereja seco, bolinho de bacalhau com molho de pimenta, espetinho de frango e carne com pimentão 3 cores.
+Saladas
+- Salada de rúcula com alface roxa, muçarela de búfala, cebola roxa (Chinês).
+- Salada Fatoush (Árabe): Mix de alface, tomate, pepino, rabanete e temperos típicos.
+- Salada de tomate cereja com mix de folhas, sementes de romã e nozes (Árabe).
+Sopas
+- Sopa de lentilha vermelha com croutons de pão árabe, limão e molho de pimenta (Árabe).
+- Sopa de grão de bico com tomate e batata acompanhada de croutons de pão folha (Árabe).
+Pratos principais
+- Guisado de sobrecoxa de frango com frutas secas acompanhado de purê de batatas cremoso com cebola e ervas (Árabe).
+- Kabsa de frango (sobrecoxa assada com arroz basmati, passas e damasco) (Árabe).
+- Carneiro cozido com legumes variados (berinjela, mini batata, mini cenoura) e arroz basmati (Árabe).
+- Pratos chineses com molho agridoce, espetinhos e canapés diversos como espetinho de frango com pimentão 3 cores ao molho agridoce.
+- Palmito com caviar de tapioca.
+Acompanhamentos
+Batatas rústicas assadas com tempero árabe (cominho e tomilho).
+Legumes ao forno com ervas (tomilho, cominho).
+Cuscuz marroquino (Árabe).
+Sobremesas
+- Baklava (Árabe).
+- Kunefe (Árabe).
+- Cheesecake de calda de damasco (Árabe).
+- Verrine de creme inglês com frutas vermelhas e mini suspiros (Árabe).
+- Frutas laminadas (melancia, melão, manga, abacaxi).
+Os pratos listados são para eventos variados, para 4-6 pessoas em versões menores, podendo ser ajustado para maiores. Quer que eu detalhe o modo de preparo de algum prato?
+
+Temos poucos dados de receitas chinesas, e muitos dados de receitas Árabes, porém se pedissimo para ele deixar uma opção de cada, o menu ficaria bem equilibrado entre as duas cozinhas.
+
+Ativa somente as collections necessárias
+```
+<img width="1048" height="545" alt="image" src="https://github.com/user-attachments/assets/63628ada-2628-4560-8bc0-f67d9642d58e" />
 
 
