@@ -10,10 +10,7 @@ cd projeto_pln/Trabalho_final_pln/trabalho_final/pln
 
 ```bash
 configurar .env
-
-# Editar .env e adicionar suas chaves
 # IMPORTANTE: Adicionar OPENAI_API_KEY (obrigatório)
-nano .env  # ou use seu editor preferido
 ```
 
 **Variáveis obrigatórias:**
