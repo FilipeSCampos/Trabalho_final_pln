@@ -3,7 +3,7 @@
 ### 1. Clonar o Repositório
 
 ```bash
-git clone [URL-DO-SEU-REPOSITORIO]
+git clone 
 cd projeto_pln/Trabalho_final_pln/trabalho_final/pln
 ```
 ### 2. Configurar Variáveis de Ambiente
