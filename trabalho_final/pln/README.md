@@ -31,6 +31,9 @@ docker compose up -d
 
 ```bash
 python scripts/setup_cozinhas.py
+
+#quando eu desço os containers "docker compose down" e subo novamente o qdrant todo corrompe, caso isso aconteca, é so rodar o setup_cozinhas
+ele ja automaticamente deleta todas as collections corrompidas que existem.
 ```
 
 ### 5. Configurar n8n
